@@ -3,21 +3,18 @@
 #include <random>
 #include <algorithm>
 
-// std::vector<float> values;      // todas las activaciones de todos los nodos
-// std::vector<float> weights;     // todos los pesos
-// std::vector<int> layer_sizes;   // cantidad de nodos por capa
-// std::vector<int> layer_offsets; // índices de arranque de cada capa en "values"
-
 struct Layer {
     std::vector<float> values;
     std::vector<float> weights;
-    int inputsPerNode;
+    size_t inputsPerNode;
 };
 
 struct NeuralNetwork {
     std::vector<Layer> layers;
 };
 
-NeuralNetwork createNewNetwork(std::vector<int> nodesPerLayer);
-
 float randomWeight();
+float activationFunction(float number);
+
+NeuralNetwork createNewNetwork(std::vector<size_t> nodesPerLayer);
+std::vector<float> processData(const std::vector<float>& input, NeuralNetwork& net);
