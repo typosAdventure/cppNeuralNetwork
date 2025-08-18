@@ -1,14 +1,24 @@
 #include "NeuralNetwork.hpp"
 #include <iostream>
 
-float randomWeight() {
-    static std::random_device rd;
-    static std::mt19937 gen(rd());
-    static std::uniform_real_distribution<float> dist(
-        std::nextafter(-0.5f, 0.0f), 
-        std::nextafter(0.5f, 0.0f)
-    );
+static std::random_device rd;
+static std::mt19937 gen(rd());
+static std::uniform_real_distribution<float> dist(
+    std::nextafter(-0.5f, 0.0f), 
+    std::nextafter(0.5f, 0.0f)
+);
+static std::uniform_real_distribution<float> mutation(
+    std::nextafter(-0.05f, 0.0f), 
+    std::nextafter(0.05f, 0.0f)
+);
 
+float randomMutation() {
+    // float x = mutation(gen);
+
+    return mutation(gen);
+}
+
+float randomWeight() {
     float x = dist(gen);
 
     return x;
@@ -72,7 +82,6 @@ void sumValuesNextLayer(const Layer& curr, std::vector<float>& nextValues) {
     for (size_t i = 0; i < nextValues.size(); i++) {
         nextValues[i] = sumValuesCurr(curr, curr.inputsPerNode * i);
     }
-    
 }
 
 // Recieves the input layer, processes the data and returns last layer as an output.
@@ -87,4 +96,30 @@ std::vector<float> processData(const std::vector<float>& inputLayer, NeuralNetwo
     }
 
     return net.layers.back().values;
+}
+
+float maxMinWeight(float weight) {
+    if (weight <= 0) {
+        return std::min(weight, -0.9999f);
+    } else {
+        return std::max(weight, 0.9999f);
+    }
+}
+
+void mutateWeights(std::vector<float>& weights) {
+    std::vector<float> weightsMut (weights.size());
+    std::generate(weightsMut.begin(), weightsMut.end(), randomMutation);
+
+    for (size_t i = 0; i < weights.size(); i++) {
+        // weights[i] = maxMinWeight(weights[i] + mutation(gen));
+        weights[i] = maxMinWeight(weights[i] + weightsMut[i]);
+    }
+}
+
+void mutateNet(NeuralNetwork& net) {
+    for (size_t i = 0; i < net.layers.size(); i++) {
+        auto& curr = net.layers[i];
+        
+        mutateWeights(curr.weights);
+    }
 }

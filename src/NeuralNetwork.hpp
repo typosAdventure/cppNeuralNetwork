@@ -18,3 +18,4 @@ float activationFunction(float number);
 
 NeuralNetwork createNewNetwork(std::vector<size_t> nodesPerLayer);
 std::vector<float> processData(const std::vector<float>& input, NeuralNetwork& net);
+void mutateNet(NeuralNetwork& net);
