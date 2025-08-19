@@ -1,11 +1,13 @@
-#include <iostream>
 #include "NeuralNetwork.hpp"
 #include <chrono>
+#include <iostream>
 
 int main() {
+    int sum;    
+
     std::vector<size_t> n = {64, 1500, 200, 4};
     NeuralNetwork network = createNewNetwork(n);
-    
+
     const int runs = 10;
 
     auto start = std::chrono::high_resolution_clock::now();
