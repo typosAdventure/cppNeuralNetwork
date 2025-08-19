@@ -84,7 +84,7 @@ void sumValuesNextLayer(const Layer& curr, std::vector<float>& nextValues) {
     }
 }
 
-// Recieves the input layer, processes the data and returns last layer as an output.
+// Recieves the input layer, processes the data and returns last layer as an output
 std::vector<float> processData(const std::vector<float>& inputLayer, NeuralNetwork& net) {
     net.layers[0].values = inputLayer;
     
