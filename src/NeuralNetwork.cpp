@@ -5,7 +5,7 @@
 
 // Initializin random seeds
 static std::random_device rd;
-static std::mt19937 gen(rd());
+static std::mt19937 gen(2);
 
 // Weights
 static std::uniform_real_distribution<float> dist(
@@ -26,13 +26,13 @@ float randomWeight() {
 }
 
 float activationFunction(float number) {
-    float scope = 4.0f;
+    float scope = 2.0f;
     float res = 0;
 
     if (number >= 0) {
         res = (-scope / (scope + number)) + 1;
     } else {
-        res = -((-scope / (scope + number)) + 1);
+        res = -((-scope / (scope - number)) + 1);
     }
 
     return (std::abs(res) < 1e-6f) ? 0.0f : res;
@@ -60,17 +60,6 @@ std::vector<std::span<float>> makeSpans(std::vector<float> &buffer, std::span<co
     return out;
 }
 
-// Returns the sum of the current values.
-float sumValuesCurr(std::span<float> currVs, std::span<float> currWs) {
-    float sum = 0.0f;
-
-    for (size_t i = 0; i < currVs.size(); i++) {
-        sum += currVs[i] * currWs[i];
-    }
-
-    return activationFunction(sum);
-}
-
 // Computes the value of each node in the next layer.
 void sumNextLayer(std::span<float> currVs, std::span<float> currWs, std::span<float> nextVs) {
     size_t stride = currVs.size();
@@ -81,13 +70,16 @@ void sumNextLayer(std::span<float> currVs, std::span<float> currWs, std::span<fl
         float sum = 0.0f;
         size_t offset = i * stride;
 
-#pragma GCC ivdep
+        // #pragma GCC ivdep
         for (size_t j = 0; j < stride; j++) {
             sum += currVs[j] * currWs[offset + j];
         }
 
         nextVs[i] = activationFunction(sum);
-        // nextVs[i] = sumValuesCurr(currVs, ws);
+
+        // std::cout << "Curr size: " << currVs.size() << " | ";
+        // std::cout << "Next size: " << nextVs.size() << " | ";
+        // std::cout << std::endl;
     }
 }
 

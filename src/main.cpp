@@ -4,19 +4,19 @@
 
 int main() {
     // std::vector<size_t> n = {1600, 800, 400, 4};;
-    std::vector<size_t> n = {700, 1400, 2500, 3600};
+    std::vector<size_t> n = {64, 2000, 2000, 3000, 4};
     NeuralNetwork network = createNewNetwork(n);
 
     const int runs = 1000;
 
-    std::vector<float> inputLayer(64, 0.5f);
+    std::vector<float> inputLayer(n[0], 0.5f);
     std::span<float> out; // = processData(inputLayer, network);
 
     auto start = std::chrono::high_resolution_clock::now();
 
     for (int i = 0; i < runs; i++) {
         out = processData(inputLayer, network);
-        mutateNet(network);
+        // mutateNet(network);
     }
 
     auto end = std::chrono::high_resolution_clock::now();
@@ -26,6 +26,11 @@ int main() {
 
     std::cout << "Total: " << total.count() << " ms para " << runs << " runs" << std::endl;
     std::cout << "Promedio: " << avg << " ms por run" << std::endl;
+
+    for (size_t j = 0; j < out.size(); j++) {
+        std::cout << out[j] << ", ";
+    }
+    std::cout << std::endl;
 
     return 0;
 }
