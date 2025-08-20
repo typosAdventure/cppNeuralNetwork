@@ -1,6 +1,6 @@
 CXX = g++
 CXXFLAGS = -Wall -Wextra -O3 -march=native -ffast-math -std=gnu++20 \
-           -fopenmp -funroll-loops -fno-math-errno -ffp-contract=fast
+           -fopenmp -fno-math-errno -ffp-contract=fast
 
 SRC_DIR = src
 BUILD_DIR = build
