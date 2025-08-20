@@ -2,129 +2,94 @@
 #include <iostream>
 #include <numeric>
 
+// Initializin random seeds
 static std::random_device rd;
 static std::mt19937 gen(rd());
+
+// Weights
 static std::uniform_real_distribution<float> dist(
     std::nextafter(-0.5f, 0.0f),
     std::nextafter(0.5f, 0.0f));
+
+// Mutations
 static std::uniform_real_distribution<float> mutation(
     std::nextafter(-0.05f, 0.0f),
     std::nextafter(0.05f, 0.0f));
 
 float randomMutation() {
-    // float x = mutation(gen);
-
     return mutation(gen);
 }
 
-float randomWeight() {
-    float x = dist(gen);
-
-    return x;
+inline float randomWeight() {
+    return dist(gen);
 }
 
-float activationFunction(float number) {
+inline float activationFunction(float number) {
     float scope = 4.0f;
     float res = 0;
 
     if (number >= 0) {
         res = (-scope / (scope + number)) + 1;
     } else {
-        res = -((-scope / (scope - number)) + 1);
+        res = -((-scope / (scope + number)) + 1);
     }
 
-    return (std::fabs(res) < 1e-6f) ? 0.0f : res;
+    return (std::abs(res) < 1e-6f) ? 0.0f : res;
 }
 
-// Returns the sum of the current value
-float sumValuesCurr(const Layer &curr, size_t offSet) {
-    auto &vals = curr.values;
-    auto &weights = curr.weights;
+std::vector<std::span<float>> makeSpans(std::vector<float> &buffer, std::span<const size_t> sizes) {
+    size_t need = 0;
+    for (size_t s : sizes) {
+        need += s;
+    }
+
+    if (need > buffer.size()) {
+        throw std::runtime_error("Sizes greater than buffer");
+    }
+
+    std::vector<std::span<float>> out;
+    out.reserve(sizes.size());
+
+    size_t offset = 0;
+    for (size_t s : sizes) {
+        out.emplace_back(buffer.data() + offset, s);
+        offset += s;
+    }
+
+    return out;
+}
+
+// Returns the sum of the current value.
+// #pragma GCC ivdep;
+inline float sumValuesCurr(std::span<float> currVs, std::span<float> currWs) {
     float sum = 0.0f;
 
-    for (size_t i = 0; i < vals.size(); i++) {
-        sum += vals[i] * weights[i + offSet];
+    for (size_t i = 0; i < currVs.size(); i++) {
+        sum += currVs[i] * currWs[i];
     }
 
     return activationFunction(sum);
 }
 
-// For each node in the next layer, saves de value of curr.value * curr.weight
-void sumValuesNextLayer(const Layer &curr, std::vector<float> &nextValues) {
-    for (size_t i = 0; i < nextValues.size(); i++) {
-        nextValues[i] = sumValuesCurr(curr, curr.inputsPerNode * i);
+// Computes the value of each node in the next layer.
+void sumNextLayer(std::span<float> currVs, std::span<float> currWs, std::span<float> nextVs) {
+    auto stride = currVs.size();
+    for (size_t i = 0; i < nextVs.size(); i++) {
+        auto ws = currWs.subspan(i * stride, stride);
+        nextVs[i] = sumValuesCurr(currVs, ws);
     }
 }
 
 float maxMinWeight(float weight) {
-    if (weight <= 0) {
-        return std::min(weight, -0.9999f);
-    } else {
-        return std::max(weight, 0.9999f);
-    }
-}
-
-void mutateWeights(std::vector<float> &weights) {
-    std::vector<float> weightsMut(weights.size());
-    std::generate(weightsMut.begin(), weightsMut.end(), randomMutation);
-
-    for (size_t i = 0; i < weights.size(); i++) {
-        // weights[i] = maxMinWeight(weights[i] + mutation(gen));
-        weights[i] = maxMinWeight(weights[i] + weightsMut[i]);
-    }
+    return std::clamp(weight, -0.9999f, 0.9999f);
 }
 
 // Creates a new instance of a neuralNetwork with random float values between
-// -1 and +1 for the weights (to be modified in the future).
+// -1 and +1 for the weights (to be modified in the future)
 // Parameter: vector.size() represents the amount of layers, each value
 //     determines the nodes per layer.
 NeuralNetwork createNewNetwork(std::vector<size_t> nodesPerLayer) {
-    NeuralNetwork neuralNetwork;
-
-    for (size_t i = 0; i < nodesPerLayer.size(); i++) {
-        Layer layer;
-        layer.values = std::vector<float>(nodesPerLayer[i], 0.0f);
-
-        if (i + 1 < nodesPerLayer.size()) {
-            layer.weights = std::vector<float>(nodesPerLayer[i] * nodesPerLayer[i + 1]);
-            std::generate(layer.weights.begin(), layer.weights.end(), randomWeight);
-
-            layer.inputsPerNode = nodesPerLayer[i];
-        } else {
-            layer.weights = std::vector<float>(0);
-            layer.inputsPerNode = 0;
-        }
-
-        neuralNetwork.layers.push_back(layer);
-    }
-
-    return neuralNetwork;
-}
-
-// Recieves the input layer, processes the data and returns last layer as an output
-std::vector<float> processData(const std::vector<float> &inputLayer, NeuralNetwork &net) {
-    net.layers[0].values = inputLayer;
-
-    for (size_t i = 0; i < net.layers.size() - 1; i++) {
-        auto &curr = net.layers[i];
-        auto &nextValues = net.layers[i + 1].values;
-
-        sumValuesNextLayer(curr, nextValues);
-    }
-
-    return net.layers.back().values;
-}
-
-void mutateNet(NeuralNetwork &net) {
-    for (size_t i = 0; i < net.layers.size(); i++) {
-        auto &curr = net.layers[i];
-
-        mutateWeights(curr.weights);
-    }
-}
-
-NeuralNetworkBIS createNewNetworkBIS(std::vector<size_t> nodesPerLayer) {
-    NeuralNetworkBIS neuralNetwork;
+    NeuralNetwork net;
 
     size_t sumValues = std::accumulate(nodesPerLayer.begin(), nodesPerLayer.end(), 0);
     size_t sumWeights = 0;
@@ -133,24 +98,45 @@ NeuralNetworkBIS createNewNetworkBIS(std::vector<size_t> nodesPerLayer) {
         sumWeights += nodesPerLayer[i] * nodesPerLayer[i + 1];
     }
 
-    neuralNetwork.inputsPerNode = nodesPerLayer;
-    neuralNetwork.values = std::vector<float>(sumValues, 0.0f);
-    neuralNetwork.weights = std::vector<float>(sumWeights);
-    std::generate(neuralNetwork.weights.begin(), neuralNetwork.weights.end(), randomWeight);
+    net.inputsPerNode = nodesPerLayer;
+    net.values = std::vector<float>(sumValues, 0.0f);
+    net.weights = std::vector<float>(sumWeights);
+    std::generate(net.weights.begin(), net.weights.end(), randomWeight);
 
-    return neuralNetwork;
+    net.spanValues = makeSpans(net.values, net.inputsPerNode);
+    net.spanWeights = makeSpans(net.weights, net.inputsPerNode);
+
+    return net;
 }
 
-// Recieves the input layer, processes the data and returns last layer as an output
-// std::vector<float> processDataBIS(const std::vector<float> &input, NeuralNetworkBIS &net) {
-//     net.layers[0].values = inputLayer;
+// Recieves the input layer, processes the data and returns last layer as an output.
+std::span<float> processData(std::vector<float> &input, NeuralNetwork &net) {
+    size_t layers = net.inputsPerNode.size();
 
-//     for (size_t i = 0; i < net.layers.size() - 1; i++) {
-//         auto &curr = net.layers[i];
-//         auto &nextValues = net.layers[i + 1].values;
+    for (size_t i = 0; i < input.size(); i++) {
+        net.values[i] = input[i];
+    }
 
-//         sumValuesNextLayer(curr, nextValues);
-//     }
+    for (size_t i = 0; i < layers - 1; i++) {
+        auto &currValues = net.spanValues[i];
+        auto &currWeights = net.spanWeights[i];
+        auto &nextValues = net.spanValues[i + 1];
 
-//     return net.layers.back().values;
-// }
+        sumNextLayer(currValues, currWeights, nextValues);
+    }
+
+    return net.spanValues[layers - 1];
+}
+
+// Mutates every weight of the net.
+void mutateNet(NeuralNetwork &net) {
+    auto &weights = net.weights;
+
+    std::vector<float> mutations;
+    mutations.reserve(weights.size());
+    std::generate(mutations.begin(), mutations.end(), randomMutation);
+
+    for (size_t i = 0; i < weights.size(); i++) {
+        weights[i] = maxMinWeight(weights[i] + mutations[i]);
+    }
+}

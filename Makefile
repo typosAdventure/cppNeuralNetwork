@@ -1,5 +1,6 @@
 CXX = g++
-CXXFLAGS = -Wall -Wextra -O3 -march=native -ffast-math -std=c++17
+CXXFLAGS = -Wall -Wextra -O3 -march=native -ffast-math -std=gnu++20 \
+           -fopt-info-vec-optimized -fopt-info-vec-missed
 SRC_DIR = src
 BUILD_DIR = build
 TARGET = app

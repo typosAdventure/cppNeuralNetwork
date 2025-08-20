@@ -93,9 +93,7 @@
         "thread": "cpp",
         "typeindex": "cpp",
         "valarray": "cpp",
-        "C_Cpp.default.cppStandard": "c++20",
-        "C_Cpp.clang_format_fallbackStyle": "{ BasedOnStyle: LLVM, IndentWidth: 4, ColumnLimit: 0, BreakBeforeBraces: Attach }",
-        "editor.autoClosingBrackets": "always",
-        "editor.formatOnType": "true"
+        // "C_Cpp.default.cppStandard": "c++20",
+        "C_Cpp.clang_format_fallbackStyle": "{ \"BasedOnStyle\": \"LLVM\", \"IndentWidth\": 4, \"ColumnLimit\": 0, \"BreakBeforeBraces\": \"Attach\" }"
     }
 }
