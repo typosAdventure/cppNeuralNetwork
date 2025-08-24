@@ -1,26 +1,56 @@
-CXX = g++
-CXXFLAGS = -Wall -Wextra -O3 -march=native -ffast-math -std=gnu++20 \
-           -fopenmp -fno-math-errno -ffp-contract=fast
+# ==== Configuración ====
+CXX := g++
+# DBG
+# CXXFLAGS := -std=gnu++20 -O3 -ffast-math -fno-math-errno -ffp-contract=fast -fopenmp -Iinclude
 
-SRC_DIR = src
-BUILD_DIR = build
-TARGET = app
+# Perfo
+CXXFLAGS := -std=gnu++20 \
+            -O3 \
+            -march=native -mtune=native \
+            -ffast-math -fno-math-errno -ffp-contract=fast \
+            -funroll-loops \
+            -fopenmp \
+            -DNDEBUG \
+            -Iinclude
 
-SRCS = $(wildcard $(SRC_DIR)/*.cpp)
-OBJS = $(patsubst $(SRC_DIR)/%.cpp,$(BUILD_DIR)/%.o,$(SRCS))
+LDFLAGS :=
+LDLIBS := -fopenmp
 
-$(TARGET): $(OBJS)
-	$(CXX) $(CXXFLAGS) -o $@ $^
+SRC_DIR := src
+OBJ_DIR := obj
+BIN_DIR := build/bin
+BIN := $(BIN_DIR)/app
 
-# Compilación de cada .cpp a .o con su .vec de reportes
-$(BUILD_DIR)/%.o: $(SRC_DIR)/%.cpp
-	@mkdir -p $(BUILD_DIR)
-	$(CXX) $(CXXFLAGS) -fopt-info-vec=$(@:.o=.vec) -c $< -o $@
+SRC := $(wildcard $(SRC_DIR)/*.cpp)
+OBJ := $(patsubst $(SRC_DIR)/%.cpp,$(OBJ_DIR)/%.o,$(SRC))
 
-.PHONY: clean run
+# ==== Reglas ====
+.PHONY: all clean run debug
 
-run: $(TARGET)
-	./$(TARGET)
+all: $(BIN)
 
+# Ejecutable final
+$(BIN): $(OBJ) | $(BIN_DIR)
+	@echo "Linking $@"
+	$(CXX) $(OBJ) -o $@ $(LDFLAGS) $(LDLIBS)
+
+# Compilar cada .cpp -> .o
+$(OBJ_DIR)/%.o: $(SRC_DIR)/%.cpp | $(OBJ_DIR)
+	@echo "Compiling $<"
+	$(CXX) $(CXXFLAGS) -c $< -o $@
+
+# Crear directorios si no existen
+$(OBJ_DIR) $(BIN_DIR):
+	mkdir -p $@
+
+# Ejecutar
+run: $(BIN)
+	$(BIN)
+
+# Compilar con flags de debug (-g -O0)
+debug: CXXFLAGS += -g -O0
+debug: clean all
+
+# Limpiar
 clean:
-	rm -rf $(BUILD_DIR) $(TARGET)
+	rm -rf $(OBJ_DIR) $(BIN_DIR)

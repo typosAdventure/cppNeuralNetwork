@@ -10,6 +10,7 @@ struct NeuralNetwork {
     std::vector<float> weights;
     std::vector<std::span<float>> spanWeights;
     std::vector<size_t> inputsPerNode;
+    std::vector<size_t> weightsPerLayer;
 };
 
 float randomWeight();
@@ -23,3 +24,4 @@ void sumNextLayer(std::span<float> currVs, std::span<float> currWs, std::span<fl
 NeuralNetwork createNewNetwork(std::vector<size_t> nodesPerLayer);
 std::span<float> processData(std::vector<float> &input, NeuralNetwork &net);
 void mutateNet(NeuralNetwork &net);
+NeuralNetwork mutateNetBIS(NeuralNetwork &net, std::vector<size_t> n, float percentage);

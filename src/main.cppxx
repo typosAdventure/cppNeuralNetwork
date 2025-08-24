@@ -1,0 +1,34 @@
+#include "nn/NeuralNetwork.hpp"
+#include <chrono>
+#include <iostream>
+
+void printResults(std::span<float> out) {
+    for (size_t i = 0; i < out.size() - 1; i++) {
+        std::cout << out[i] << ", ";
+    }
+    std::cout << out[out.size() - 1] << std::endl;
+}
+
+int main() {
+    // std::vector<size_t> n = {3, 3};
+    // std::vector<size_t> n = {64, 2000, 2000, 3000, 4};
+    std::vector<size_t> n = {3, 3};
+    NeuralNetwork network = createNewNetwork(n);
+    std::vector<float> inputLayer;
+
+    // auto out = processData(inputLayer, network);
+
+    network.weights = {-0.433825, -0.0786107, -0.236442, 0.309159, -0.109811, 0.21912, -0.0293321, 0.178242, -0.0916967};
+    inputLayer = {1, 0, 1};
+    printResults(processData(inputLayer, network));
+
+    network.weights = {-0.433825, -0.0786107, -0.236442, 0.309159, -0.109811, 0.21912, -0.0293321, 0.178242, -0.0916967};
+    inputLayer = {0, 1, 1};
+    printResults(processData(inputLayer, network));
+
+    network.weights = {-0.433825, -0.0786107, -0.236442, 0.309159, -0.109811, 0.21912, -0.0293321, 0.178242, -0.0916967};
+    inputLayer = {1, 1, 0};
+    printResults(processData(inputLayer, network));
+
+    return 0;
+}

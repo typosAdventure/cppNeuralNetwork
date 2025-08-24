@@ -1,11 +1,12 @@
-#include "NeuralNetwork.hpp"
+#include "nn/NeuralNetwork.hpp"
+#include <algorithm>
 #include <iostream>
 #include <numeric>
 #include <omp.h>
 
-// Initializin random seeds
+// Initializing random seeds
 static std::random_device rd;
-static std::mt19937 gen(2);
+static std::mt19937 gen(rd());
 
 // Weights
 static std::uniform_real_distribution<float> dist(
@@ -26,7 +27,7 @@ float randomWeight() {
 }
 
 float activationFunction(float number) {
-    float scope = 2.0f;
+    float scope = 1.0f;
     float res = 0;
 
     if (number >= 0) {
@@ -36,6 +37,14 @@ float activationFunction(float number) {
     }
 
     return (std::abs(res) < 1e-6f) ? 0.0f : res;
+
+    // if (number > 1) {
+    //     number = 1;
+    // } else if (number < -1) {
+    //     number = -1;
+    // }
+
+    // return number;
 }
 
 std::vector<std::span<float>> makeSpans(std::vector<float> &buffer, std::span<const size_t> sizes) {
@@ -62,24 +71,25 @@ std::vector<std::span<float>> makeSpans(std::vector<float> &buffer, std::span<co
 
 // Computes the value of each node in the next layer.
 void sumNextLayer(std::span<float> currVs, std::span<float> currWs, std::span<float> nextVs) {
-    size_t stride = currVs.size();
-
-#pragma omp parallel for simd
     for (size_t i = 0; i < nextVs.size(); i++) {
-        auto ws = currWs.subspan(i * stride, stride);
-        float sum = 0.0f;
-        size_t offset = i * stride;
+        nextVs[i] = 0;
+    }
 
-        // #pragma GCC ivdep
-        for (size_t j = 0; j < stride; j++) {
-            sum += currVs[j] * currWs[offset + j];
+    // #pragma omp parallel for simd
+    for (size_t i = 0; i < currVs.size(); ++i) { // outer
+        // float sum = 0;
+        float vsi = currVs[i]; // se queda en registro
+        // float sum = 0.0f;
+        size_t offset = i * nextVs.size();
+
+        for (size_t j = 0; j < nextVs.size(); ++j) {
+            nextVs[j] += currWs[offset + j] * vsi;
         }
+        // nextVs[j] = sum;
+    }
 
-        nextVs[i] = activationFunction(sum);
-
-        // std::cout << "Curr size: " << currVs.size() << " | ";
-        // std::cout << "Next size: " << nextVs.size() << " | ";
-        // std::cout << std::endl;
+    for (auto &val : nextVs) {
+        val = activationFunction(val);
     }
 }
 
@@ -96,9 +106,11 @@ NeuralNetwork createNewNetwork(std::vector<size_t> nodesPerLayer) {
 
     size_t sumValues = std::accumulate(nodesPerLayer.begin(), nodesPerLayer.end(), size_t{0});
     size_t sumWeights = 0;
+    // std::vector<size_t> weightsPerLayer;
 
     for (size_t i = 0; i + 1 < nodesPerLayer.size(); ++i) {
         sumWeights += nodesPerLayer[i] * nodesPerLayer[i + 1];
+        net.weightsPerLayer.push_back(nodesPerLayer[i] * nodesPerLayer[i + 1]);
     }
 
     net.inputsPerNode = nodesPerLayer;
@@ -107,13 +119,16 @@ NeuralNetwork createNewNetwork(std::vector<size_t> nodesPerLayer) {
     std::generate(net.weights.begin(), net.weights.end(), randomWeight);
 
     net.spanValues = makeSpans(net.values, net.inputsPerNode);
-    net.spanWeights = makeSpans(net.weights, net.inputsPerNode);
+    net.spanWeights = makeSpans(net.weights, net.weightsPerLayer);
 
     return net;
 }
 
 // Recieves the input layer, processes the data and returns last layer as an output.
 std::span<float> processData(std::vector<float> &input, NeuralNetwork &net) {
+    net.spanValues = makeSpans(net.values, net.inputsPerNode);
+    net.spanWeights = makeSpans(net.weights, net.weightsPerLayer);
+
     size_t layers = net.inputsPerNode.size();
 
     for (size_t i = 0; i < input.size(); i++) {
@@ -135,14 +150,39 @@ std::span<float> processData(std::vector<float> &input, NeuralNetwork &net) {
 void mutateNet(NeuralNetwork &net) {
     auto &weights = net.weights;
 
-#pragma omp parallel for
+    // #pragma omp parallel for
     for (size_t i = 0; i < weights.size(); i++) {
         static thread_local uint32_t seed = 123456789u ^ omp_get_thread_num();
         seed ^= seed << 13;
         seed ^= seed >> 17;
         seed ^= seed << 5;
 
-        float mutation = -0.1f + 0.2f * (seed / static_cast<float>(UINT32_MAX));
+        float mutation = -0.05f + 0.1f * (seed / static_cast<float>(UINT32_MAX));
         weights[i] = std::clamp(weights[i] + mutation, -0.9999f, 0.9999f);
     }
+}
+
+// Mutates every weight of the net.
+NeuralNetwork mutateNetBIS(NeuralNetwork &net, std::vector<size_t> n, float percentage) {
+    NeuralNetwork newNet = createNewNetwork(n);
+
+    newNet.weights = net.weights;
+    auto &weights = newNet.weights;
+
+    // #pragma omp parallel for
+    for (size_t i = 0; i < weights.size(); i++) {
+        float n = percentage / 100;
+        static thread_local uint32_t seed = 123456789u ^ omp_get_thread_num();
+        seed ^= seed << 13;
+        seed ^= seed >> 17;
+        seed ^= seed << 5;
+
+        float mutation = -n + ((2 * n) * (seed / static_cast<float>(UINT32_MAX)));
+        weights[i] = std::clamp(weights[i] + mutation, -0.9999f, 0.9999f);
+    }
+
+    // newNet.spanValues = makeSpans(newNet.values, newNet.inputsPerNode);
+    // newNet.spanWeights = makeSpans(newNet.weights, newNet.inputsPerNode);
+
+    return newNet;
 }
